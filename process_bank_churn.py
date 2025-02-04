@@ -28,7 +28,9 @@ def split_data(
 
 
 def create_inputs_targets(
-        df_dict: Dict[str, pd.DataFrame], input_cols: list, target_col: str
+        df_dict: Dict[str, pd.DataFrame],
+        input_cols: list[str],
+        target_col: str
 ) -> Dict[str, Any]:
     """
     Create inputs and targets for training and validation sets.
@@ -52,7 +54,7 @@ def create_inputs_targets(
 
 
 def impute_missing_values(
-        data: Dict[str, Any], numeric_cols: list, strategy: str = 'median'
+        data: Dict[str, Any], numeric_cols: list[str], strategy: str = 'median'
 ) -> None:
     """
     Imputes missing values in numeric columns using the specified strategy
@@ -75,7 +77,9 @@ def impute_missing_values(
     return data
 
 
-def scale_numeric_features(data: Dict[str, Any], numeric_cols: list) -> None:
+def scale_numeric_features(
+        data: Dict[str, Any], numeric_cols: list[str]
+) -> None:
     """
     Scales numeric features using MinMaxScaler.
 
@@ -89,10 +93,11 @@ def scale_numeric_features(data: Dict[str, Any], numeric_cols: list) -> None:
         data[f'{split}_inputs'][numeric_cols] = scaler.transform(
             data[f'{split}_inputs'][numeric_cols]
         )
+    data['scaler'] = scaler
 
 
 def encode_categorical_features(
-        data: Dict[str, Any], categorical_cols: list
+        data: Dict[str, Any], categorical_cols: list[str]
 ) -> None:
     """
     One-hot encode categorical features.
@@ -118,6 +123,7 @@ def encode_categorical_features(
             axis=1
             )
     data['encoded_cols'] = encoded_cols
+    data['encoder'] = encoder
 
 
 def preprocess_data(
@@ -166,4 +172,38 @@ def preprocess_data(
         'train_y': data['train_targets'],
         'val_X': X_val,
         'val_y': data['val_targets'],
+        'scaler': data['scaler'],
+        'encoder': data['encoder'],
+        'input_cols': input_cols,
+        'numeric_cols': numeric_cols,
+        'categorical_cols': categorical_cols,
     }
+
+
+def preprocess_new_data(
+    new_data: pd.DataFrame,
+    input_cols: list[str],
+    numeric_cols: list[str],
+    categorical_cols: list[str],
+    encoder: OneHotEncoder,
+    scaler: MinMaxScaler = None,
+) -> pd.DataFrame:
+    """
+    Preprocesses new data using a previously trained scaler and encoder.
+    """
+    new_data = new_data[input_cols]
+    if scaler:
+        new_data.loc[:, numeric_cols] = scaler.transform(
+            new_data[numeric_cols]
+        )
+    encoded = encoder.transform(new_data[categorical_cols])
+    encoded_df = pd.DataFrame(
+        encoded,
+        columns=encoder.get_feature_names_out(categorical_cols),
+        index=new_data.index
+    )
+    new_data = pd.concat(
+        [new_data.drop(columns=categorical_cols), encoded_df],
+        axis=1
+    )
+    return new_data
