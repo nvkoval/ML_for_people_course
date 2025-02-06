@@ -161,6 +161,8 @@ def preprocess_data(
     impute_missing_values(data, numeric_cols, impute_strategy)
     if scaler_numeric:
         scale_numeric_features(data, numeric_cols)
+    else:
+        data['scaler'] = None
     encode_categorical_features(data, categorical_cols)
 
     # Extract X_train, X_val
@@ -191,19 +193,19 @@ def preprocess_new_data(
     """
     Preprocesses new data using a previously trained scaler and encoder.
     """
-    new_data = new_data[input_cols]
+    preprocessed_new_data = new_data[input_cols].copy()
     if scaler:
-        new_data.loc[:, numeric_cols] = scaler.transform(
-            new_data[numeric_cols]
+        preprocessed_new_data.loc[:, numeric_cols] = scaler.transform(
+            preprocessed_new_data[numeric_cols]
         )
-    encoded = encoder.transform(new_data[categorical_cols])
+    encoded = encoder.transform(preprocessed_new_data[categorical_cols])
     encoded_df = pd.DataFrame(
         encoded,
         columns=encoder.get_feature_names_out(categorical_cols),
-        index=new_data.index
+        index=preprocessed_new_data.index
     )
-    new_data = pd.concat(
-        [new_data.drop(columns=categorical_cols), encoded_df],
+    preprocessed_new_data = pd.concat(
+        [preprocessed_new_data.drop(columns=categorical_cols), encoded_df],
         axis=1
     )
-    return new_data
+    return preprocessed_new_data
